@@ -164,18 +164,82 @@ export default function StatsScreen() {
   };
 
   const BADGES = [
-    { key: 'first_pomo', emoji: '🍅', title: '初ポモ', desc: '初めてポモドーロを完了', check: (logs, books) => logs.filter(l => l.is_completed).length >= 1 },
-    { key: 'pomo_10', emoji: '🔟', title: '10ポモ達成', desc: '合計10ポモドーロ完了', check: (logs) => logs.filter(l => l.is_completed).length >= 10 },
-    { key: 'pomo_50', emoji: '💫', title: '50ポモ達成', desc: '合計50ポモドーロ完了', check: (logs) => logs.filter(l => l.is_completed).length >= 50 },
-    { key: 'pomo_100', emoji: '💯', title: '100ポモ達成', desc: '合計100ポモドーロ完了', check: (logs) => logs.filter(l => l.is_completed).length >= 100 },
+    // ポモドーロ数
+    { key: 'first_pomo', emoji: '🍅', title: '初ポモ', desc: '初めてポモドーロを完了', check: (logs) => logs.filter(l => l.is_completed).length >= 1 },
+    { key: 'pomo_10', emoji: '🔟', title: '10ポモ達成', desc: '合計10ポモ完了', check: (logs) => logs.filter(l => l.is_completed).length >= 10 },
+    { key: 'pomo_50', emoji: '💫', title: '50ポモ達成', desc: '合計50ポモ完了', check: (logs) => logs.filter(l => l.is_completed).length >= 50 },
+    { key: 'pomo_100', emoji: '💯', title: '100ポモ達成', desc: '合計100ポモ完了', check: (logs) => logs.filter(l => l.is_completed).length >= 100 },
+
+    // 連続学習
     { key: 'streak_3', emoji: '🔥', title: '3日連続', desc: '3日連続で学習', check: (logs) => calcStreakFromLogs(logs) >= 3 },
     { key: 'streak_7', emoji: '🌟', title: '7日連続', desc: '7日連続で学習', check: (logs) => calcStreakFromLogs(logs) >= 7 },
     { key: 'streak_30', emoji: '👑', title: '30日連続', desc: '30日連続で学習', check: (logs) => calcStreakFromLogs(logs) >= 30 },
+
+    // 教材完了
     { key: 'first_complete', emoji: '✅', title: '初完了', desc: '初めて教材を完了', check: (logs, books) => books.filter(b => b.status === '完了').length >= 1 },
     { key: 'complete_5', emoji: '📚', title: '5冊完了', desc: '5冊の教材を完了', check: (logs, books) => books.filter(b => b.status === '完了').length >= 5 },
     { key: 'complete_10', emoji: '🎓', title: '10冊完了', desc: '10冊の教材を完了', check: (logs, books) => books.filter(b => b.status === '完了').length >= 10 },
-    { key: 'early_bird', emoji: '🌅', title: '早起き学習', desc: '朝6時前にポモドーロ完了', check: (logs) => logs.some(l => l.is_completed && new Date(l.created_at).getHours() < 6) },
-    { key: 'night_owl', emoji: '🦉', title: '夜型学習', desc: '深夜0時以降にポモドーロ完了', check: (logs) => logs.some(l => l.is_completed && new Date(l.created_at).getHours() >= 0 && new Date(l.created_at).getHours() < 5) },
+
+    // 1日の学習時間
+    { key: 'day_1h', emoji: '⏰', title: '1日1時間', desc: '1日に1時間以上学習', check: (logs) => {
+      const byDay = {};
+      logs.filter(l => l.is_completed).forEach(l => {
+        const d = new Date(l.created_at).toLocaleDateString('ja-JP');
+        byDay[d] = (byDay[d] || 0) + (l.duration_minutes || 25);
+      });
+      return Object.values(byDay).some(m => m >= 60);
+    }},
+    { key: 'day_3h', emoji: '🔆', title: '1日3時間', desc: '1日に3時間以上学習', check: (logs) => {
+      const byDay = {};
+      logs.filter(l => l.is_completed).forEach(l => {
+        const d = new Date(l.created_at).toLocaleDateString('ja-JP');
+        byDay[d] = (byDay[d] || 0) + (l.duration_minutes || 25);
+      });
+      return Object.values(byDay).some(m => m >= 180);
+    }},
+    { key: 'day_5h', emoji: '🌈', title: '1日5時間', desc: '1日に5時間以上学習', check: (logs) => {
+      const byDay = {};
+      logs.filter(l => l.is_completed).forEach(l => {
+        const d = new Date(l.created_at).toLocaleDateString('ja-JP');
+        byDay[d] = (byDay[d] || 0) + (l.duration_minutes || 25);
+      });
+      return Object.values(byDay).some(m => m >= 300);
+    }},
+
+    // 週の学習時間
+    { key: 'week_5h', emoji: '📅', title: '週5時間', desc: '1週間に5時間以上学習', check: (logs) => {
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+      monday.setHours(0, 0, 0, 0);
+      const weekMins = logs.filter(l => l.is_completed && new Date(l.created_at) >= monday)
+        .reduce((s, l) => s + (l.duration_minutes || 25), 0);
+      return weekMins >= 300;
+    }},
+    { key: 'week_10h', emoji: '🚀', title: '週10時間', desc: '1週間に10時間以上学習', check: (logs) => {
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+      monday.setHours(0, 0, 0, 0);
+      const weekMins = logs.filter(l => l.is_completed && new Date(l.created_at) >= monday)
+        .reduce((s, l) => s + (l.duration_minutes || 25), 0);
+      return weekMins >= 600;
+    }},
+    { key: 'week_20h', emoji: '⚡', title: '週20時間', desc: '1週間に20時間以上学習', check: (logs) => {
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+      monday.setHours(0, 0, 0, 0);
+      const weekMins = logs.filter(l => l.is_completed && new Date(l.created_at) >= monday)
+        .reduce((s, l) => s + (l.duration_minutes || 25), 0);
+      return weekMins >= 1200;
+    }},
+
+    // 時間帯
+    { key: 'early_bird', emoji: '🌅', title: '早起き学習', desc: '朝6時前にポモ完了', check: (logs) => logs.some(l => l.is_completed && new Date(l.created_at).getHours() < 6) },
+    { key: 'night_owl', emoji: '🦉', title: '夜型学習', desc: '深夜0時以降にポモ完了', check: (logs) => logs.some(l => l.is_completed && new Date(l.created_at).getHours() >= 0 && new Date(l.created_at).getHours() < 5) },
+
+    // 集中度・理解度
     { key: 'perfect_focus', emoji: '🎯', title: '完璧な集中', desc: '集中度5を10回達成', check: (logs) => logs.filter(l => l.focus_score === 5).length >= 10 },
     { key: 'high_understanding', emoji: '💡', title: '理解力抜群', desc: '理解度5を10回達成', check: (logs) => logs.filter(l => l.understanding_score === 5).length >= 10 },
   ];
@@ -237,12 +301,6 @@ export default function StatsScreen() {
         <View style={styles.headerRow}>
           <Text style={[styles.header, { color: theme.text }]}>📊 統計</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity
-              style={[styles.themeBtn, { backgroundColor: theme.card }]}
-              onPress={() => setShowProfile(true)}
-            >
-              <Text style={styles.themeBtnText}>👤 プロフィール</Text>
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.themeBtn, { backgroundColor: theme.card }]}
               onPress={toggleTheme}
@@ -603,9 +661,6 @@ export default function StatsScreen() {
 
       </ScrollView>
 
-      <Modal visible={showProfile} animationType="slide">
-        <ProfileEditScreen onClose={() => setShowProfile(false)} />
-      </Modal>
     </SafeAreaView>
   );
 }

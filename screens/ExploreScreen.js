@@ -97,6 +97,7 @@ export default function ExploreScreen() {
   const openCopyModal = (route) => {
     setSelectedRoute(route);
     setCopyTarget(myRoutes[0] || 'デフォルト');
+    setNewCopyRouteName('');
     setShowCopyModal(true);
   };
 
@@ -185,14 +186,12 @@ export default function ExploreScreen() {
             const sortedBooks = (item.published_books || []).sort((a, b) => a.position - b.position);
             const isCopying = copyingId === item.id;
             return (
-              <TouchableOpacity
-                style={[styles.card, { backgroundColor: theme.card }]}
-                onPress={() => { setSelectedRoute(item); setShowDetail(true); }}
-                activeOpacity={0.85}
-              >
+              <View style={[styles.card, { backgroundColor: theme.card }]}>
                 <View style={styles.cardHeader}>
                   <View style={styles.cardHeaderLeft}>
-                    <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+                    <TouchableOpacity onPress={() => { setSelectedRoute(item); setShowDetail(true); }}>
+                      <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+                    </TouchableOpacity>
                     <Text style={[styles.cardTarget, { color: theme.subText }]}>🎯 {item.target}</Text>
                   </View>
                   {item.is_passed && (
@@ -225,7 +224,7 @@ export default function ExploreScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </View>
             );
           }}
           ListEmptyComponent={<Text style={[styles.empty, { color: theme.subText }]}>該当するルートがありません</Text>}

@@ -19,6 +19,9 @@ export default function FriendsScreen() {
   const [compareData, setCompareData] = useState(null);
   const [comparing, setComparing] = useState(false);
   const [tab, setTab] = useState('friends'); // friends / requests
+  const [friendRankings, setFriendRankings] = useState([]);
+  const [rankTab, setRankTab] = useState('weekly');
+  const [rankLoading, setRankLoading] = useState(false);
 
   useEffect(() => { initUser(); }, []);
 
@@ -35,6 +38,52 @@ export default function FriendsScreen() {
     fetchRequests(user.id);
   };
 
+  const fetchFriendRankings = async (uid, friendList) => {
+    setRankLoading(true);
+    const allIds = [...friendList.map(f => f.user_id), uid];
+
+    const { data: logs } = await supabase
+      .from('pomodoro_logs')
+      .select('user_id, created_at, is_completed, duration_minutes')
+      .eq('is_completed', true)
+      .in('user_id', allIds);
+
+    if (!logs) { setRankLoading(false); return; }
+
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+    monday.setHours(0, 0, 0, 0);
+
+    const stats = {};
+    allIds.forEach(id => { stats[id] = { weekly: 0, total: 0, weeklyMins: 0 }; });
+
+    logs.forEach(l => {
+      if (!stats[l.user_id]) return;
+      stats[l.user_id].total++;
+      if (new Date(l.created_at) >= monday) {
+        stats[l.user_id].weekly++;
+        stats[l.user_id].weeklyMins += (l.duration_minutes || 25);
+      }
+    });
+
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('user_id, username')
+      .in('user_id', allIds);
+
+    const ranked = (profiles || []).map(p => ({
+      ...p,
+      isMe: p.user_id === uid,
+      weekly: stats[p.user_id]?.weekly || 0,
+      total: stats[p.user_id]?.total || 0,
+      weeklyHours: Math.round((stats[p.user_id]?.weeklyMins || 0) / 60 * 10) / 10,
+    }));
+
+    setFriendRankings(ranked);
+    setRankLoading(false);
+  };
+
   const fetchFriends = async (uid) => {
     setLoading(true);
     const { data } = await supabase
@@ -48,7 +97,12 @@ export default function FriendsScreen() {
           .from('user_profiles')
           .select('user_id, username')
           .in('user_id', friendIds);
-        if (profiles) setFriends(profiles);
+        if (profiles) {
+          setFriends(profiles);
+          fetchFriendRankings(uid, profiles);
+        }
+      } else {
+        fetchFriendRankings(uid, []);
       }
     }
     setLoading(false);
@@ -274,6 +328,15 @@ export default function FriendsScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tabBtn, { backgroundColor: theme.card },
+              tab === 'ranking' && { backgroundColor: theme.primary }]}
+            onPress={() => setTab('ranking')}
+          >
+            <Text style={[styles.tabText, { color: tab === 'ranking' ? '#fff' : theme.subText }]}>
+              🏆 ランキング
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBtn, { backgroundColor: theme.card },
               tab === 'requests' && { backgroundColor: theme.primary }]}
             onPress={() => setTab('requests')}
           >
@@ -311,6 +374,83 @@ export default function FriendsScreen() {
                   </TouchableOpacity>
                 </View>
               ))
+            )}
+          </View>
+        )}
+
+        {/* フレンドランキング */}
+        {tab === 'ranking' && (
+          <View>
+            <View style={styles.rankTabRow}>
+              {[
+                { key: 'weekly', label: '今週のポモ' },
+                { key: 'total', label: '累計ポモ' },
+                { key: 'weeklyHours', label: '今週の時間' },
+              ].map(t => (
+                <TouchableOpacity
+                  key={t.key}
+                  style={[styles.rankTabBtn, { backgroundColor: theme.card },
+                    rankTab === t.key && { backgroundColor: theme.primary }]}
+                  onPress={() => setRankTab(t.key)}
+                >
+                  <Text style={[styles.rankTabText, { color: rankTab === t.key ? '#fff' : theme.subText }]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {rankLoading ? (
+              <ActivityIndicator color={theme.primary} style={{ marginTop: 20 }} />
+            ) : friendRankings.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyIcon}>👥</Text>
+                <Text style={[styles.empty, { color: theme.subText }]}>フレンドを追加するとランキングが表示されます</Text>
+              </View>
+            ) : (
+              <View style={[styles.rankList, { backgroundColor: theme.card }]}>
+                {[...friendRankings]
+                  .sort((a, b) => b[rankTab] - a[rankTab])
+                  .map((item, i) => {
+                    const getRankEmoji = (r) => {
+                      if (r === 0) return '🥇';
+                      if (r === 1) return '🥈';
+                      if (r === 2) return '🥉';
+                      return `${r + 1}`;
+                    };
+                    const getValue = () => {
+                      if (rankTab === 'weekly') return `${item.weekly}ポモ`;
+                      if (rankTab === 'total') return `${item.total}ポモ`;
+                      if (rankTab === 'weeklyHours') return `${item.weeklyHours}h`;
+                      return '';
+                    };
+                    return (
+                      <View key={i} style={[
+                        styles.rankRow,
+                        { borderBottomColor: theme.border },
+                        item.isMe && { backgroundColor: theme.inputBg }
+                      ]}>
+                        <Text style={[styles.rankNum, {
+                          color: i === 0 ? '#FFD700' : i === 1 ? '#9E9E9E' : i === 2 ? '#CD7F32' : theme.subText
+                        }]}>
+                          {getRankEmoji(i)}
+                        </Text>
+                        <View style={[styles.rankAvatar, {
+                          backgroundColor: item.isMe ? theme.primary : theme.border
+                        }]}>
+                          <Text style={styles.rankAvatarText}>
+                            {item.username?.[0]?.toUpperCase() || '?'}
+                          </Text>
+                        </View>
+                        <Text style={[styles.rankName, { color: theme.text }]} numberOfLines={1}>
+                          @{item.username} {item.isMe ? '（あなた）' : ''}
+                        </Text>
+                        <Text style={[styles.rankValue, { color: theme.primary }]}>{getValue()}</Text>
+                      </View>
+                    );
+                  })
+                }
+              </View>
             )}
           </View>
         )}
@@ -463,5 +603,15 @@ const styles = StyleSheet.create({
   barLeft: { height: 10, borderRadius: 5 },
   barRight: { height: 10, borderRadius: 5 },
   closeBtn: { backgroundColor: '#5C6BC0', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 16 },
-  closeBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 }
+  closeBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  rankTabRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  rankTabBtn: { flex: 1, borderRadius: 10, padding: 8, alignItems: 'center' },
+  rankTabText: { fontSize: 11, fontWeight: 'bold' },
+  rankList: { borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
+  rankRow: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, gap: 10 },
+  rankNum: { width: 30, fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  rankAvatar: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  rankAvatarText: { color: '#fff', fontWeight: 'bold' },
+  rankName: { flex: 1, fontSize: 14 },
+  rankValue: { fontSize: 14, fontWeight: 'bold' },
 });

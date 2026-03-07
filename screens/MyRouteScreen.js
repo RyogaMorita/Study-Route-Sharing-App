@@ -5,6 +5,7 @@ import {
   ActivityIndicator, Switch, Image, ScrollView
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Accelerometer } from 'expo-sensors';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/ThemeContext';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -56,12 +57,50 @@ export default function MyRouteScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [referenceUrl, setReferenceUrl] = useState('');
   const [showCompleteRouteModal, setShowCompleteRouteModal] = useState(false);
+  const [fullscreenTimer, setFullscreenTimer] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [flipToFocus, setFlipToFocus] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const celebScale = useSharedValue(0);
   const celebOpacity = useSharedValue(0);
   const intervalRef = useRef(null);
 
   useEffect(() => { initUser(); }, []);
   useEffect(() => { if (userId) fetchBooks(userId, currentRoute); }, [currentRoute]);
+
+  // 裏返し検知
+  useEffect(() => {
+    if (!flipToFocus || !timerRunning) return;
+
+    let sub;
+    try {
+      Accelerometer.setUpdateInterval(500);
+      sub = Accelerometer.addListener(({ z }) => {
+        const flipped = z < -0.8;
+        setIsFlipped(prev => {
+          if (prev !== flipped) {
+            if (!flipped && timerRunning) {
+              clearInterval(intervalRef.current);
+              setTimerRunning(false);
+              const elapsed = Math.floor((pomoDuration - timeLeft) / 60);
+              setElapsedMinutes(elapsed);
+              setIsFlipped(false);
+              alert('スマホが表向きになったのでポモドーロを終了しました');
+              setShowModal(true);
+            }
+            return flipped;
+          }
+          return prev;
+        });
+      });
+    } catch (e) {
+      console.log('Accelerometer not supported:', e);
+    }
+
+    return () => {
+      try { sub?.remove(); } catch (e) {}
+    };
+  }, [flipToFocus, timerRunning]);
 
   useEffect(() => {
     if (timerRunning) {
@@ -89,12 +128,18 @@ export default function MyRouteScreen() {
     // ポモドーロ時間をプロフィールから取得
     const { data: profile } = await supabase
       .from('user_profiles')
-      .select('pomodoro_minutes')
+      .select('pomodoro_minutes, fullscreen_timer, flip_to_focus')
       .eq('user_id', user.id)
       .single();
     if (profile?.pomodoro_minutes) {
       setTimeLeft(profile.pomodoro_minutes * 60);
       setPomoDuration(profile.pomodoro_minutes * 60);
+    }
+    if (profile?.fullscreen_timer !== undefined) {
+      setFullscreenTimer(profile.fullscreen_timer);
+    }
+    if (profile?.flip_to_focus !== undefined) {
+      setFlipToFocus(profile.flip_to_focus);
     }
   };
 
@@ -192,16 +237,37 @@ export default function MyRouteScreen() {
   };
 
   const pickImage = async (book) => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) { alert('写真へのアクセスを許可してください'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, aspect: [1, 1], quality: 0.5,
+    const choice = await new Promise((resolve) => {
+      if (window.confirm('カメラで撮影しますか？\n（キャンセルでギャラリーから選択）')) {
+        resolve('camera');
+      } else {
+        resolve('gallery');
+      }
     });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      await supabase.from('my_books').update({ local_image_uri: uri }).eq('id', book.id);
-      setBooks(books.map(b => b.id === book.id ? { ...b, local_image_uri: uri } : b));
+
+    if (choice === 'camera') {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) { alert('カメラへのアクセスを許可してください'); return; }
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true, aspect: [1, 1], quality: 0.5,
+      });
+      if (!result.canceled) {
+        const uri = result.assets[0].uri;
+        await supabase.from('my_books').update({ local_image_uri: uri }).eq('id', book.id);
+        setBooks(books.map(b => b.id === book.id ? { ...b, local_image_uri: uri } : b));
+      }
+    } else {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) { alert('写真へのアクセスを許可してください'); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true, aspect: [1, 1], quality: 0.5,
+      });
+      if (!result.canceled) {
+        const uri = result.assets[0].uri;
+        await supabase.from('my_books').update({ local_image_uri: uri }).eq('id', book.id);
+        setBooks(books.map(b => b.id === book.id ? { ...b, local_image_uri: uri } : b));
+      }
     }
   };
 
@@ -257,14 +323,18 @@ export default function MyRouteScreen() {
     setTimeLeft(pomoDuration);
     setTimerRunning(true);
     setPomoEndPage('');
+    if (fullscreenTimer) setIsFullscreen(true);
   };
 
   const stopTimer = () => {
-    clearInterval(intervalRef.current);
-    setTimerRunning(false);
-    const elapsed = Math.floor((pomoDuration - timeLeft) / 60);
-    setElapsedMinutes(elapsed);
-    setShowModal(true);
+    if (window.confirm('ポモドーロを終了しますか？\n途中終了した時間は+分として記録されます。')) {
+      clearInterval(intervalRef.current);
+      setIsFullscreen(false);
+      setTimerRunning(false);
+      const elapsed = Math.floor((pomoDuration - timeLeft) / 60);
+      setElapsedMinutes(elapsed);
+      setShowModal(true);
+    }
   };
 
   const finishPomodoro = async () => {
@@ -326,7 +396,7 @@ export default function MyRouteScreen() {
     if (allDone && updatedBooks.length > 0) {
       setTimeout(() => setShowCompleteRouteModal(true), 1000);
     }
-    setShowModal(false); setSelectedBook(null); setTimeLeft(pomoDuration);
+    setShowModal(false); setIsFullscreen(false); setSelectedBook(null); setTimeLeft(pomoDuration);
     setFocus(3); setUnderstanding(3); setNextReviewDate(''); setPomoEndPage('');
     setElapsedMinutes(0);
   };
@@ -453,9 +523,6 @@ export default function MyRouteScreen() {
           <TouchableOpacity style={styles.publishBtn} onPress={() => setShowPublishModal(true)}>
             <Text style={styles.publishBtnText}>公開</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.logoutBtn, { backgroundColor: theme.card }]} onPress={logout}>
-            <Text style={[styles.logoutBtnText, { color: theme.subText }]}>ログアウト</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -547,8 +614,32 @@ export default function MyRouteScreen() {
           <TouchableOpacity style={styles.stopBtn} onPress={stopTimer}>
             <Text style={styles.stopBtnText}>終了</Text>
           </TouchableOpacity>
+          {flipToFocus && (
+            <Text style={styles.flipStatus}>
+              {isFlipped ? '📵 集中モード中' : '🔄 スマホを裏返して集中！'}
+            </Text>
+          )}
         </View>
       )}
+
+      {/* フルスクリーンタイマー */}
+      <Modal visible={isFullscreen} animationType="fade">
+        <View style={[styles.fullscreenContainer, { backgroundColor: theme.primary }]}>
+          <Text style={styles.fullscreenBook}>🍅 {selectedBook?.title}</Text>
+          <Text style={styles.fullscreenTime}>{formatTime(timeLeft)}</Text>
+          <View style={styles.fullscreenBar}>
+            <View style={[styles.fullscreenBarFill, {
+              width: `${((pomoDuration - timeLeft) / pomoDuration) * 100}%`
+            }]} />
+          </View>
+          <TouchableOpacity
+            style={styles.fullscreenStopBtn}
+            onPress={stopTimer}
+          >
+            <Text style={styles.fullscreenStopText}>■ 終了</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* 参考書追加ボタン */}
       <TouchableOpacity
@@ -596,8 +687,7 @@ export default function MyRouteScreen() {
                   <View style={styles.cardMiddle}>
                     <Text style={[styles.bookTitle, { color: theme.text }]}>{item.title}</Text>
                     <Text style={[styles.pomodoros, { color: theme.subText }]}>
-                      🍅 {item.pomodoros}ポモ
-                      {item.extra_minutes > 0 ? ` +${item.extra_minutes}分` : ''}
+                      🍅 {item.pomodoros}ポモ{item.extra_minutes > 0 ? `  +${item.extra_minutes}分` : ''}
                     </Text>
                     {item.total_pages > 0 && (
                       <TouchableOpacity onPress={() => openPageModal(item)}>
@@ -729,6 +819,11 @@ export default function MyRouteScreen() {
               autoCapitalize="none"
               keyboardType="url"
             />
+            <View style={[styles.imageNotice, { backgroundColor: theme.inputBg }]}>
+              <Text style={[styles.imageNoticeText, { color: theme.subText }]}>
+                📷 表紙写真はカードに表示されます{'\n'}※写真は公開されません（自分のみ見えます）
+              </Text>
+            </View>
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.cancelBtn}
                 onPress={() => { setShowAddBook(false); setTitle(''); setTotalPages(''); setReferenceUrl(''); }}>
@@ -1094,4 +1189,14 @@ const styles = StyleSheet.create({
   },
   completeBookBtnText: { color: '#4CAF50', fontSize: 15, fontWeight: 'bold' },
   urlLink: { fontSize: 11, marginTop: 2, textDecorationLine: 'underline' },
+  imageNotice: { borderRadius: 8, padding: 10, marginBottom: 12 },
+  imageNoticeText: { fontSize: 12, lineHeight: 18 },
+  fullscreenContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  fullscreenBook: { color: '#fff', fontSize: 18, marginBottom: 40, textAlign: 'center' },
+  fullscreenTime: { color: '#fff', fontSize: 96, fontWeight: 'bold', marginBottom: 40 },
+  fullscreenBar: { width: '100%', height: 8, backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 4, marginBottom: 60 },
+  fullscreenBarFill: { height: 8, backgroundColor: '#fff', borderRadius: 4 },
+  fullscreenStopBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 16, paddingHorizontal: 40, paddingVertical: 16 },
+  fullscreenStopText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  flipStatus: { color: '#fff', fontSize: 13, marginTop: 8, opacity: 0.8 },
 });

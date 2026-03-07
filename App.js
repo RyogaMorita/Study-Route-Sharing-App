@@ -14,6 +14,7 @@ import MyPublishedScreen from './screens/MyPublishedScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import FriendsScreen from './screens/FriendsScreen';
 import RankingScreen from './screens/RankingScreen';
+import SettingsScreen from './screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -115,6 +116,11 @@ export default function App() {
             name="ランキング"
             component={RankingScreen}
             options={{ tabBarIcon: () => <Text>🏆</Text> }}
+          />
+          <Tab.Screen
+            name="設定"
+            component={SettingsScreen}
+            options={{ tabBarIcon: () => <Text>⚙️</Text> }}
           />
         </Tab.Navigator>
       </NavigationContainer>
