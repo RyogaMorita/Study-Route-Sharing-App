@@ -1,32 +1,123 @@
+import { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Text, ActivityIndicator, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './lib/supabase';
+import { ThemeProvider } from './lib/ThemeContext';
 import MyRouteScreen from './screens/MyRouteScreen';
 import ExploreScreen from './screens/ExploreScreen';
 import StatsScreen from './screens/StatsScreen';
+import AuthScreen from './screens/AuthScreen';
+import ProfileSetupScreen from './screens/ProfileSetupScreen';
+import MyPublishedScreen from './screens/MyPublishedScreen';
+import OnboardingScreen from './screens/OnboardingScreen';
+import FriendsScreen from './screens/FriendsScreen';
+import RankingScreen from './screens/RankingScreen';
 
 const Tab = createBottomTabNavigator();
 
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [hasProfile, setHasProfile] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) checkProfile(session.user.id);
+      else setLoading(false);
+    });
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) checkProfile(session.user.id);
+      else { setHasProfile(false); setLoading(false); }
+    });
+  }, []);
+
+  useEffect(() => {
+    const checkMonthlyBadges = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const now = new Date();
+        const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const lastCheck = await AsyncStorage.getItem('lastBadgeCheck');
+
+        if (lastCheck === month) return;
+
+        await supabase.functions.invoke('award-monthly-badges');
+        await AsyncStorage.setItem('lastBadgeCheck', month);
+      } catch (e) {
+        console.log('badge check error:', e);
+      }
+    };
+
+    checkMonthlyBadges();
+  }, []);
+
+  const checkProfile = async (userId) => {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    setHasProfile(!!data);
+    setLoading(false);
+  };
+
+  if (loading) return (
+    <ThemeProvider>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#5C6BC0" />
+      </View>
+    </ThemeProvider>
+  );
+
+  if (!session) return <ThemeProvider><AuthScreen /></ThemeProvider>;
+  if (!hasProfile) return (
+    <ThemeProvider>
+      <ProfileSetupScreen onComplete={() => setHasProfile(true)} />
+    </ThemeProvider>
+  );
+
   return (
-    <NavigationContainer>
-      <Tab.Navigator screenOptions={{ headerShown: false }}>
-        <Tab.Screen
-          name="マイルート"
-          component={MyRouteScreen}
-          options={{ tabBarIcon: () => <Text>📚</Text> }}
-        />
-        <Tab.Screen
-          name="探す"
-          component={ExploreScreen}
-          options={{ tabBarIcon: () => <Text>🔍</Text> }}
-        />
-        <Tab.Screen
-          name="統計"
-          component={StatsScreen}
-          options={{ tabBarIcon: () => <Text>📊</Text> }}
-        />
-      </Tab.Navigator>
-    </NavigationContainer>
+    <ThemeProvider>
+      <NavigationContainer>
+        <Tab.Navigator screenOptions={{ headerShown: false }}>
+          <Tab.Screen
+            name="マイルート"
+            component={MyRouteScreen}
+            options={{ tabBarIcon: () => <Text>📚</Text> }}
+          />
+          <Tab.Screen
+            name="探す"
+            component={ExploreScreen}
+            options={{ tabBarIcon: () => <Text>🔍</Text> }}
+          />
+          <Tab.Screen
+            name="統計"
+            component={StatsScreen}
+            options={{ tabBarIcon: () => <Text>📊</Text> }}
+          />
+          <Tab.Screen
+            name="公開中"
+            component={MyPublishedScreen}
+            options={{ tabBarIcon: () => <Text>🌏</Text> }}
+          />
+          <Tab.Screen
+            name="フレンド"
+            component={FriendsScreen}
+            options={{ tabBarIcon: () => <Text>👥</Text> }}
+          />
+          <Tab.Screen
+            name="ランキング"
+            component={RankingScreen}
+            options={{ tabBarIcon: () => <Text>🏆</Text> }}
+          />
+        </Tab.Navigator>
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }
