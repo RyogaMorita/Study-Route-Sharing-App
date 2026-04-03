@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   filterBtnActive: { backgroundColor: '#5C6BC0', borderColor: '#5C6BC0' },
   filterText: { fontSize: 13 },
   filterTextActive: { color: '#fff', fontWeight: 'bold' },
-  card: { borderRadius: 16, padding: 16, marginBottom: 12, elevation: 2 },
+  card: { borderRadius: 16, padding: 16, marginBottom: 12, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   cardHeaderLeft: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 2 },

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, SafeAreaView,
-  FlatList, TouchableOpacity, ActivityIndicator
+  FlatList, TouchableOpacity, ActivityIndicator, Alert
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/ThemeContext';
@@ -30,10 +30,21 @@ export default function MyPublishedScreen() {
     setLoading(false);
   };
 
-  const deleteRoute = async (route) => {
-    if (!window.confirm(`「${route.title}」を削除しますか？`)) return;
-    await supabase.from('published_routes').delete().eq('id', route.id);
-    setRoutes(routes.filter(r => r.id !== route.id));
+  const deleteRoute = (route) => {
+    Alert.alert(
+      'ルートを削除',
+      `「${route.title}」を削除しますか？`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除', style: 'destructive',
+          onPress: async () => {
+            await supabase.from('published_routes').delete().eq('id', route.id);
+            setRoutes(prev => prev.filter(r => r.id !== route.id));
+          }
+        }
+      ]
+    );
   };
 
   const shareRoute = async (route) => {
@@ -114,7 +125,7 @@ export default function MyPublishedScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   header: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
-  card: { borderRadius: 16, padding: 16, marginBottom: 12, elevation: 2 },
+  card: { borderRadius: 16, padding: 16, marginBottom: 12, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   cardHeaderLeft: { flex: 1 },
   cardTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 2 },

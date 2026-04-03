@@ -109,27 +109,36 @@ export default function FriendsScreen() {
   };
 
   const fetchRequests = async (uid) => {
-    const { data } = await supabase
-      .from('friend_requests')
-      .select('*')
-      .eq('to_username', '')
-      .eq('status', 'pending');
-
-    // 自分のusernameへのリクエストを取得
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('username')
       .eq('user_id', uid)
       .single();
 
-    if (profile) {
-      const { data: reqs } = await supabase
-        .from('friend_requests')
-        .select('*')
-        .eq('to_username', profile.username)
-        .eq('status', 'pending');
-      if (reqs) setRequests(reqs);
-    }
+    if (!profile) return;
+
+    const { data: reqs } = await supabase
+      .from('friend_requests')
+      .select('*')
+      .eq('to_username', profile.username)
+      .eq('status', 'pending');
+
+    if (!reqs || reqs.length === 0) return;
+
+    // 送信者のユーザー名を取得
+    const senderIds = reqs.map(r => r.from_user_id);
+    const { data: senderProfiles } = await supabase
+      .from('user_profiles')
+      .select('user_id, username')
+      .in('user_id', senderIds);
+
+    const profileMap = {};
+    (senderProfiles || []).forEach(p => { profileMap[p.user_id] = p.username; });
+
+    setRequests(reqs.map(r => ({
+      ...r,
+      from_username: profileMap[r.from_user_id] || r.from_user_id,
+    })));
   };
 
   const sendRequest = async () => {
@@ -468,7 +477,7 @@ export default function FriendsScreen() {
                 <View key={i} style={[styles.requestCard, { backgroundColor: theme.card }]}>
                   <View style={styles.requestLeft}>
                     <Text style={[styles.requestFrom, { color: theme.text }]}>
-                      @{req.from_user_id}からの申請
+                      @{req.from_username || req.from_user_id}からの申請
                     </Text>
                   </View>
                   <View style={styles.requestBtns}>
@@ -553,11 +562,11 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   header: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
-  myCard: { borderRadius: 16, padding: 16, marginBottom: 16, alignItems: 'center', elevation: 2 },
+  myCard: { borderRadius: 16, padding: 16, marginBottom: 16, alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
   myLabel: { fontSize: 13, marginBottom: 4 },
   myUsername: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
   myHint: { fontSize: 12 },
-  section: { borderRadius: 16, padding: 16, marginBottom: 16, elevation: 2 },
+  section: { borderRadius: 16, padding: 16, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
   searchRow: { flexDirection: 'row', gap: 8 },
   searchInput: { flex: 1, borderRadius: 10, padding: 12, fontSize: 15, borderWidth: 1 },
@@ -566,14 +575,14 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   tabBtn: { flex: 1, borderRadius: 12, padding: 12, alignItems: 'center' },
   tabText: { fontWeight: 'bold', fontSize: 14 },
-  friendCard: { borderRadius: 14, padding: 14, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 2 },
+  friendCard: { borderRadius: 14, padding: 14, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6 },
   friendLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   avatarText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   friendName: { fontSize: 15, fontWeight: '600' },
   compareBtn: { backgroundColor: '#EEF0FF', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   compareBtnText: { color: '#5C6BC0', fontWeight: 'bold', fontSize: 13 },
-  requestCard: { borderRadius: 14, padding: 14, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 2 },
+  requestCard: { borderRadius: 14, padding: 14, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6 },
   requestLeft: { flex: 1 },
   requestFrom: { fontSize: 14, fontWeight: '600' },
   requestBtns: { flexDirection: 'row', gap: 8 },
