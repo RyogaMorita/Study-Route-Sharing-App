@@ -6,7 +6,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/ThemeContext';
 
-export default function ProfileEditScreen({ onClose }) {
+export default function ProfileEditScreen({ onClose, onComplete }) {
   const { theme } = useTheme();
   const [username, setUsername] = useState('');
   const [examDate, setExamDate] = useState('');
@@ -39,8 +39,8 @@ export default function ProfileEditScreen({ onClose }) {
     });
     setSaving(false);
     if (error) { alert('保存に失敗しました'); return; }
-    alert('保存しました！');
-    onClose();
+    if (onComplete) onComplete();
+    else if (onClose) onClose();
   };
 
   if (loading) return (
@@ -54,9 +54,11 @@ export default function ProfileEditScreen({ onClose }) {
       <ScrollView>
         <View style={styles.headerRow}>
           <Text style={[styles.header, { color: theme.text }]}>👤 プロフィール編集</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={[styles.closeBtn, { color: theme.subText }]}>✕ 閉じる</Text>
-          </TouchableOpacity>
+          {(onClose || onComplete) && (
+            <TouchableOpacity onPress={onClose || onComplete}>
+              <Text style={[styles.closeBtn, { color: theme.subText }]}>✕ 閉じる</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={[styles.card, { backgroundColor: theme.card }]}>
