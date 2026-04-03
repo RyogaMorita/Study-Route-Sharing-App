@@ -252,7 +252,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   header: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
-  section: { borderRadius: 20, padding: 20, marginBottom: 16, elevation: 2 },
+  section: { borderRadius: 20, padding: 20, marginBottom: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
   sectionTitle: { fontSize: 17, fontWeight: 'bold', marginBottom: 16 },
   label: { fontSize: 15, fontWeight: '600', marginBottom: 8 },
   emailBox: { borderRadius: 8, padding: 14, marginBottom: 16 },

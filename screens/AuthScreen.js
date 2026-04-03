@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator
+  StyleSheet, SafeAreaView, ActivityIndicator, Platform
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/ThemeContext';
@@ -38,10 +38,15 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
+      <View style={styles.topDecoration} />
       <View style={styles.inner}>
-        <Text style={styles.logo}>📚</Text>
-        <Text style={styles.title}>StudyRoute</Text>
-        <Text style={[styles.subtitle, { color: theme.subText }]}>学習ルートを設計・共有しよう</Text>
+        <View style={styles.logoArea}>
+          <View style={[styles.logoCircle, { backgroundColor: '#5C6BC0' }]}>
+            <Text style={styles.logo}>📚</Text>
+          </View>
+          <Text style={styles.title}>StudyRoute</Text>
+          <Text style={[styles.subtitle, { color: theme.subText }]}>学習ルートを設計・共有しよう</Text>
+        </View>
 
         <View style={[styles.card, { backgroundColor: theme.card }]}>
 
@@ -101,23 +106,52 @@ export default function AuthScreen() {
   );
 }
 
+
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  topDecoration: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0,
+    height: 280,
+    backgroundColor: '#5C6BC0',
+    opacity: 0.08,
+    borderBottomLeftRadius: 60,
+    borderBottomRightRadius: 60,
+  },
   inner: { flex: 1, justifyContent: 'center', padding: 24 },
-  logo: { fontSize: 64, textAlign: 'center' },
-  title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#5C6BC0', marginTop: 8 },
-  subtitle: { fontSize: 15, textAlign: 'center', marginBottom: 32 },
-  card: { borderRadius: 20, padding: 24, elevation: 2 },
+  logoArea: { alignItems: 'center', marginBottom: 36 },
+  logoCircle: {
+    width: 90, height: 90, borderRadius: 45,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#5C6BC0',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  logo: { fontSize: 44 },
+  title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', color: '#5C6BC0', letterSpacing: 1 },
+  subtitle: { fontSize: 14, textAlign: 'center', marginTop: 6, letterSpacing: 0.3 },
+  card: {
+    borderRadius: 24, padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 6,
+  },
   cardTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
   error: { color: '#E53935', fontSize: 13, marginBottom: 12 },
-  input: { borderRadius: 8, padding: 14, fontSize: 15, marginBottom: 12, borderWidth: 1 },
-  button: { backgroundColor: '#5C6BC0', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 4 },
+  input: { borderRadius: 12, padding: 14, fontSize: 15, marginBottom: 12, borderWidth: 1 },
+  button: { backgroundColor: '#5C6BC0', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   toggle: { textAlign: 'center', marginTop: 16, fontSize: 14 },
-  guestBtn: { backgroundColor: '#5C6BC0', borderRadius: 12, padding: 18, alignItems: 'center' },
+  guestBtn: { backgroundColor: '#5C6BC0', borderRadius: 14, padding: 18, alignItems: 'center' },
   guestBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   guestNote: { fontSize: 12, textAlign: 'center', marginTop: 8 },
   divider: { height: 1, marginVertical: 16 },
-  emailBtn: { borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1 },
+  emailBtn: { borderRadius: 14, padding: 16, alignItems: 'center', borderWidth: 1 },
   emailBtnText: { fontSize: 15 },
 });

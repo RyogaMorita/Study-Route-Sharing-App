@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, ActivityIndicator, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
-import { ThemeProvider } from './lib/ThemeContext';
+import { ThemeProvider, useTheme } from './lib/ThemeContext';
 import MyRouteScreen from './screens/MyRouteScreen';
 import ExploreScreen from './screens/ExploreScreen';
 import StatsScreen from './screens/StatsScreen';
@@ -17,6 +17,72 @@ import RankingScreen from './screens/RankingScreen';
 import SettingsScreen from './screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
+
+function MainTabs() {
+  const { theme } = useTheme();
+
+  const tabBarStyle = {
+    backgroundColor: theme.tabBarBg,
+    borderTopColor: theme.border,
+    borderTopWidth: 1,
+    height: 60,
+    paddingBottom: 8,
+    paddingTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 10,
+  };
+
+  const screenOptions = {
+    headerShown: false,
+    tabBarStyle,
+    tabBarActiveTintColor: theme.primary,
+    tabBarInactiveTintColor: theme.subText,
+    tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginBottom: 2 },
+  };
+
+  return (
+    <Tab.Navigator screenOptions={screenOptions}>
+      <Tab.Screen
+        name="マイルート"
+        component={MyRouteScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>📚</Text> }}
+      />
+      <Tab.Screen
+        name="探す"
+        component={ExploreScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🔍</Text> }}
+      />
+      <Tab.Screen
+        name="統計"
+        component={StatsScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>📊</Text> }}
+      />
+      <Tab.Screen
+        name="公開中"
+        component={MyPublishedScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🌏</Text> }}
+      />
+      <Tab.Screen
+        name="フレンド"
+        component={FriendsScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>👥</Text> }}
+      />
+      <Tab.Screen
+        name="ランキング"
+        component={RankingScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🏆</Text> }}
+      />
+      <Tab.Screen
+        name="設定"
+        component={SettingsScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>⚙️</Text> }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -86,43 +152,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <NavigationContainer>
-        <Tab.Navigator screenOptions={{ headerShown: false }}>
-          <Tab.Screen
-            name="マイルート"
-            component={MyRouteScreen}
-            options={{ tabBarIcon: () => <Text>📚</Text> }}
-          />
-          <Tab.Screen
-            name="探す"
-            component={ExploreScreen}
-            options={{ tabBarIcon: () => <Text>🔍</Text> }}
-          />
-          <Tab.Screen
-            name="統計"
-            component={StatsScreen}
-            options={{ tabBarIcon: () => <Text>📊</Text> }}
-          />
-          <Tab.Screen
-            name="公開中"
-            component={MyPublishedScreen}
-            options={{ tabBarIcon: () => <Text>🌏</Text> }}
-          />
-          <Tab.Screen
-            name="フレンド"
-            component={FriendsScreen}
-            options={{ tabBarIcon: () => <Text>👥</Text> }}
-          />
-          <Tab.Screen
-            name="ランキング"
-            component={RankingScreen}
-            options={{ tabBarIcon: () => <Text>🏆</Text> }}
-          />
-          <Tab.Screen
-            name="設定"
-            component={SettingsScreen}
-            options={{ tabBarIcon: () => <Text>⚙️</Text> }}
-          />
-        </Tab.Navigator>
+        <MainTabs />
       </NavigationContainer>
     </ThemeProvider>
   );
