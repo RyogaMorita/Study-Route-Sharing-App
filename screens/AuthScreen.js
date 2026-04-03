@@ -18,7 +18,10 @@ export default function AuthScreen() {
   const handleGuest = async () => {
     setLoading(true); setError('');
     const { error } = await supabase.auth.signInAnonymously();
-    if (error) setError('ゲストログインに失敗しました');
+    if (error) {
+      console.log('Guest login error:', error);
+      setError('ゲストログインに失敗しました：' + error.message);
+    }
     setLoading(false);
   };
 
@@ -52,6 +55,7 @@ export default function AuthScreen() {
 
           {!showEmail ? (
             <>
+              {error ? <Text style={styles.error}>{error}</Text> : null}
               {/* ゲストログイン */}
               <TouchableOpacity style={styles.guestBtn} onPress={handleGuest} disabled={loading}>
                 {loading
