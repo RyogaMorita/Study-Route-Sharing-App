@@ -38,7 +38,7 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
-      <View style={styles.topDecoration} />
+      <View style={styles.topDecoration} pointerEvents="none" />
       <View style={styles.inner}>
         <View style={styles.logoArea}>
           <View style={[styles.logoCircle, { backgroundColor: '#5C6BC0' }]}>
@@ -118,7 +118,6 @@ const styles = StyleSheet.create({
     opacity: 0.08,
     borderBottomLeftRadius: 60,
     borderBottomRightRadius: 60,
-    pointerEvents: 'none',
   },
   inner: { flex: 1, justifyContent: 'center', padding: 24 },
   logoArea: { alignItems: 'center', marginBottom: 36 },
