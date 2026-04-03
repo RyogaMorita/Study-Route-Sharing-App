@@ -118,6 +118,7 @@ const styles = StyleSheet.create({
     opacity: 0.08,
     borderBottomLeftRadius: 60,
     borderBottomRightRadius: 60,
+    pointerEvents: 'none',
   },
   inner: { flex: 1, justifyContent: 'center', padding: 24 },
   logoArea: { alignItems: 'center', marginBottom: 36 },
