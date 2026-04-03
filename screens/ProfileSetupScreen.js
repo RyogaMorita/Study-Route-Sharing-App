@@ -60,10 +60,14 @@ export default function ProfileEditScreen({ onClose }) {
         </View>
 
         <View style={[styles.card, { backgroundColor: theme.card }]}>
-          <Text style={[styles.label, { color: theme.text }]}>メールアドレス</Text>
-          <View style={[styles.emailBox, { backgroundColor: theme.inputBg }]}>
-            <Text style={[styles.emailText, { color: theme.subText }]}>{email}</Text>
-          </View>
+          {email ? (
+            <>
+              <Text style={[styles.label, { color: theme.text }]}>メールアドレス</Text>
+              <View style={[styles.emailBox, { backgroundColor: theme.inputBg }]}>
+                <Text style={[styles.emailText, { color: theme.subText }]}>{email}</Text>
+              </View>
+            </>
+          ) : null}
 
           <Text style={[styles.label, { color: theme.text }]}>ユーザー名</Text>
           <TextInput
