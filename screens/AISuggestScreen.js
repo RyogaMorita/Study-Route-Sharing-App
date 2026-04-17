@@ -3,8 +3,21 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, ScrollView, ActivityIndicator, TextInput
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../lib/ThemeContext';
+
+const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+const AI_DAILY_LIMIT = 10;
+
+const checkRateLimit = async () => {
+  const today = new Date().toISOString().split('T')[0];
+  const key = `ai_usage_${today}`;
+  const count = parseInt(await AsyncStorage.getItem(key) || '0', 10);
+  if (count >= AI_DAILY_LIMIT) return { allowed: false, count };
+  await AsyncStorage.setItem(key, String(count + 1));
+  return { allowed: true, count: count + 1 };
+};
 
 export default function AISuggestScreen() {
   const { theme } = useTheme();
@@ -51,6 +64,15 @@ export default function AISuggestScreen() {
   };
 
   const generateSuggestion = async () => {
+    if (!ANTHROPIC_API_KEY) {
+      setSuggestion({ today: 'APIキーが設定されていません。.envファイルにEXPO_PUBLIC_ANTHROPIC_API_KEYを設定してください。' });
+      return;
+    }
+    const { allowed, count } = await checkRateLimit();
+    if (!allowed) {
+      setSuggestion({ today: `本日の利用上限（${AI_DAILY_LIMIT}回）に達しました。明日またお試しください。` });
+      return;
+    }
     setLoading(true);
     setSuggestion(null);
     const context = buildContext();
@@ -58,7 +80,11 @@ export default function AISuggestScreen() {
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1000,
@@ -89,6 +115,15 @@ export default function AISuggestScreen() {
 
   const sendChat = async () => {
     if (!question.trim()) return;
+    if (!ANTHROPIC_API_KEY) {
+      setChatHistory(prev => [...prev, { role: 'assistant', content: 'APIキーが設定されていません。' }]);
+      return;
+    }
+    const { allowed } = await checkRateLimit();
+    if (!allowed) {
+      setChatHistory(prev => [...prev, { role: 'assistant', content: `本日の利用上限（${AI_DAILY_LIMIT}回）に達しました。明日またお試しください。` }]);
+      return;
+    }
     const userMsg = question.trim();
     setQuestion('');
     setChatLoading(true);
@@ -101,7 +136,11 @@ export default function AISuggestScreen() {
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1000,
